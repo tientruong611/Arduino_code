@@ -1,182 +1,361 @@
 #cho meo mon ham an 
 
 #include <WiFi.h>
+
 #include <WebServer.h>
+
 #include <ESP32Servo.h>
+
 #include <EEPROM.h>  
+
+
 #include <NTPClient.h>
+
 #include <WiFiUdp.h>
+
 ///thiet lap web
+
 WebServer webServer(80);
+
 //===== get time internet
+
 WiFiUDP ntpUDP;
+
 NTPClient timeClient(ntpUDP); 
+
 String formattedDate;
+
 String dayStamp;
+
 String timeStamp;
+
 //===== khai bao servo==========
+
 Servo myservo;  // Tạo một đối tượng servo để điều khiển servo
+
 int servoPin = 12;      // Chân GPIO được sử dụng để kết nối đến điều khiển servo (digital out)
+
 int targetAngle = 90;   // Góc mục tiêu cho servo (ở đây là 90 độ)
-// ============== set UP STATION va ACCESS555555555555555                                                                                                                                                                                                                                                                                                 
+
+// ============== set UP STATION va ACCESS555555555555555                                                                                                                                                           
+
+
 const char* ssid_ap = "Phòng 4-5GKH";
+
 const char* pass_ap = "68686868";
+
 IPAddress ip_ap(192, 168, 4, 1);
+
 IPAddress gateway_ap(192, 168, 4, 1);
+
 IPAddress subnet_ap(255, 255, 255, 0);
 
+
+
 char* ssid_sta = "Phòng 6-7G 2.4GHz";
+
 char* pass_sta = "68686868";
 
+
+
 // declare function
+
 void setWifi();
+
 void mainpage();
+
 void on_12();
+
 void off_12();
+
 void write_EEPROM();
+
 void get_ip();
+
 String set_Time();
+
 void setUp_Angle();
 
+
+
 void setup()
+
 {
+
   myservo.attach(servoPin, 500, 2400);   // Kết nối servo trên chân 18 vào đối tượng servo
+
+  
   
   EEPROM.begin(512);
+  
   delay(10);
+
+
 
   setWifi();
 
+
+
   webServer.on("/", mainpage);
+  
   webServer.on("/on12", on_12);
+  
   webServer.on("/off12", off_12);
+  
   webServer.on("/writeEEPROM", write_EEPROM);
+  
   webServer.on("/getip", get_ip);
+  
   webServer.on("/getTime",set_Time);
+  
   webServer.begin();
 
+
+
   timeClient.begin(); 
+  
+  
   timeClient.setTimeOffset(+7*60*60);
+
   
 }
 
+
+
+
 void loop() {
+
   webServer.handleClient();
+  
     while(!timeClient.update()) {
+    
     timeClient.forceUpdate();
   }
+  
+  
   formattedDate = timeClient.getFormattedDate();
+  
   int splitT = formattedDate.indexOf("T");
+  
   dayStamp = formattedDate.substring(0, splitT);
+  
   timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
+  
   delay(1000);
 
+
+
   if (timeStamp == "10:00:00" || timeStamp == "22:00:00" || timeStamp == set_Time()) {
+  
     setUp_Angle();
   }
   }
+  
+
+
 
  
+
  
+
+
+
 
 
 //=========Biến chứa mã HTML Website==//
+
 const char Mainpage[] PROGMEM = R"=====(
+
 <!DOCTYPE html>
+
 <html lang="en">
-<head>
+
+  
+  <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-</head>
- <style> 
+  
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <t
+    
+    itle>Document</title>
+</he
+  ad>
+ <
+   style> 
+   
     body {text-align:center;}
+    
     h1 {color:#003399;}
+    
     a {text-decoration: none;color:#FFFFFF;}
+    
     .bt_on {height:50px; width:100px; margin:10px 0;background-color:#FF6600;border-radius:5px;}
+    
     .bt_off {height:50px; width:100px; margin:10px 0;background-color:#00FF00;border-radius:5px;}
+    
     .bt_on:hover{
+    
       background-color: #6d72f4fb;
+      
       cursor: pointer;
     }
+    
+    
     .bt_off:hover{
+    
       background-color: #6d72f4fb;
+      
       cursor: pointer;
-    }     
+    } 
+    
+    
     .design_EEP button{
+    
       height:30px; 
+      
       width:80px; 
+      
       margin:10px 0;
+      
       background-color:#00FF00;
+      
       border-radius:5px;
+
+
       
     }
+    
 
+    
+    
     .input_IdPass{
+    
       padding: 4px;
+      
       text-align: center;
     }
+    
+
+
 
     .design_EEP button:hover{
+
+      
       
       background-color: #6d72f4fb;
+      
       cursor: pointer;
     }
+    
+
+
 
     .design_EEP .bt_restart{
+    
       height:30px; 
+      
       width:80px; 
+      
       margin:10px 0;
+      
       background-color:#FF6600;
+      
       border-radius:5px;
     }
     
+
+    
+    
     #time{
+    
         width: 170px;
         height: 27.2px;
+        
+        
         padding: 2px;
+        
         border-radius: 4px;
+        
         cursor: pointer;
+        
         margin: 4px 0px 4px 0px;
 
+
+
     }    
-</style>
- <body> 
+</st
+  yle>
+ <
+   body> 
+   
     <h1>Feeding Automation</h1> 
+    
     <div>Trạng thái trên chân 12: <b><span id="reponseText"><span></b></div>
+    
     <div>
+    
       <button class="bt_on" onclick="getdata('on12')">Cho ăn</button>
+      
       <button class="bt_off" onclick="getdata('off12')">Hủy cho ăn</button>
-    </div>
+    </
+    div>
+    
     <div>
       <span>Thiết lập thông tin Wifi kết nối</span> <br>
+    
       <span>Nhập tên Wifi:</span>
+      
       <div>
+      
         <input type="text" id="ID" class="input_IdPass" placeholder="nhap SSID" >
-      </div>
-    </div>
+      </
+      div>
+    </
+    div>
+
+
 
     <div>
+    
       <span>Password Wifi:</span>
+      
       <div>
+      
         <input type="text" id="Pass" class="input_IdPass" placeholder="Password" >
-      </div>
-    </div>
+      </
+      div>
+    </
+    div>
+
+
 
      <div>
+     
         <div><span>chọn mốc thời gian</span></div>
+        
+        
         <input id="times" type="text">
         <div>
+        
         <button id="get" onclick="getTime()"> Lưu thời gian </button> 
+        
+        
         </div>
+
          
       </div>    
 
+
+
     <div class="design_EEP">
+    
       <button class="bt_write" onclick="writeEEPROM()">WRITE</button>
+      
       <button class="bt_restart" onclick="restartEEPROM()">RESTART</button>
+      
       <button class="bt_clear" onclick="clearEEPROM()">CLEAR</button>
-    </div>
+    </
+    div>
 
     <div>
       <span>IP connected :</span>
